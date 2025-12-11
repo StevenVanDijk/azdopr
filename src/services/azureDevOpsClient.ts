@@ -830,6 +830,125 @@ export class AzureDevOpsClient {
 	}
 
 	/**
+	 * Fetch file content with optional LFS resolution
+	 *
+	 * This method extends the basic getFileContent() to support Git LFS files.
+	 * When resolveLfs=true, Azure DevOps API automatically resolves LFS pointer
+	 * files to their actual binary content.
+	 *
+	 * @param projectId The project ID
+	 * @param repositoryId The repository ID
+	 * @param path The file path (e.g., "/docs/manual.pdf")
+	 * @param version The commit SHA or branch name
+	 * @param resolveLfs If true, resolve LFS pointer files to actual content (default: false)
+	 * @param downloadType 'text' for text content (string), 'binary' for Buffer (default: 'text')
+	 * @returns Promise resolving to string (text) or Buffer (binary) depending on downloadType
+	 * @throws Error if file not found or download fails
+	 */
+	async getFileContentWithLfs(
+		projectId: string,
+		repositoryId: string,
+		path: string,
+		version: string,
+		resolveLfs: boolean = false,
+		downloadType: 'text' | 'binary' = 'text'
+	): Promise<string | Buffer> {
+		try {
+			const headers = await this.getAuthHeaders();
+			// Azure DevOps Git Items API expects paths without leading slash
+			const normalizedPath = path.startsWith('/') ? path.substring(1) : path;
+
+			// Encode each path segment separately to preserve forward slashes
+			const encodedPath = normalizedPath
+				.split('/')
+				.map(segment => encodeURIComponent(segment))
+				.join('/');
+
+			// Determine versionType based on version format
+			const versionType = /^[0-9a-f]{40}$/i.test(version) ? "commit" : "branch";
+
+			// Build query parameters
+			const params = new URLSearchParams({
+				path: encodedPath,
+				versionType: versionType,
+				version: version,
+				includeContent: 'true',
+				'api-version': '7.1'  // Upgraded from 7.0 for LFS support
+			});
+
+			// Add resolveLfs parameter if requested
+			if (resolveLfs) {
+				params.append('resolveLfs', 'true');
+			}
+
+			const url = `${this.getBaseUrl()}/${projectId}/_apis/git/repositories/${repositoryId}/items?${params}`;
+
+			console.log('[AzureDevOpsClient] Fetching file with LFS:', {
+				originalPath: path,
+				encodedPath,
+				version,
+				versionType,
+				resolveLfs,
+				downloadType
+			});
+
+			// Set response type based on download type
+			const response = await this.axiosInstance.get(url, {
+				headers,
+				responseType: downloadType === 'binary' ? 'arraybuffer' : 'json'
+			});
+
+			// Handle binary response
+			if (downloadType === 'binary') {
+				// For binary downloads, Azure DevOps returns the raw binary data
+				return Buffer.from(response.data);
+			}
+
+			// Handle text response (same logic as getFileContent)
+			if (
+				response.data &&
+				typeof response.data === "object" &&
+				"content" in response.data
+			) {
+				const content = response.data.content;
+
+				if (content && typeof content === "string") {
+					return content
+						.replaceAll(String.raw`\n`, "\n")
+						.replaceAll(String.raw`\r`, "\r")
+						.replaceAll(String.raw`\t`, "\t");
+				}
+
+				if (content !== null && content !== undefined) {
+					console.warn(`Unexpected content type for file ${path}:`, typeof content);
+				}
+				return "";
+			}
+
+			// Fallback: if response is already a string
+			if (typeof response.data === "string") {
+				return response.data;
+			}
+
+			throw new Error(`Unexpected response format for file: ${path}`);
+		} catch (error) {
+			if (axios.isAxiosError(error)) {
+				console.error('[AzureDevOpsClient] Error fetching file with LFS:', {
+					path,
+					resolveLfs,
+					status: error.response?.status,
+					statusText: error.response?.statusText,
+					data: error.response?.data
+				});
+				if (error.response?.status === 404) {
+					throw new Error(`File not found: ${path}`);
+				}
+			}
+			throw error;
+		}
+	}
+
+	/**
 	 * Create or update a reviewer vote on a pull request
 	 * @param projectId The project ID
 	 * @param repositoryId The repository ID

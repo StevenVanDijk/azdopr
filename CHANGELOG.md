@@ -2,6 +2,38 @@
 
 All notable changes to the Azure DevOps PR Viewer extension.
 
+## [1.4.0-beta.1] - 2025-12-10
+
+### Added
+
+- **Git LFS Support** - View binary files stored in Git LFS directly in VS Code
+  - **PDF viewing** - Open PDF files from PRs in VS Code's built-in PDF viewer
+  - **Automatic LFS detection** - Extension automatically detects LFS pointer files and downloads actual content
+  - **Fast API-based downloads** - Uses Azure DevOps API with `resolveLfs` parameter for efficient file retrieval
+  - **Intelligent caching** - Two-tier cache system (memory + disk) for instant re-opening of LFS files
+  - **Extensible architecture** - File handler registry pattern allows easy addition of new file types
+- **LFS file cache management** - "Clear LFS File Cache" command to manage cached binary files
+- **Configuration settings for LFS**:
+  - `azureDevOpsPRViewer.lfs.enabled` - Enable/disable LFS support (default: true)
+  - `azureDevOpsPRViewer.lfs.cacheSize` - Maximum cache size in MB (default: 500)
+  - `azureDevOpsPRViewer.lfs.supportedTypes` - Array of supported file types (default: ["pdf"])
+
+### Changed
+
+- **Upgraded Azure DevOps API version** - Updated from 7.0 to 7.1 for LFS support
+- **Enhanced file handling** - Added binary file detection and specialized handlers for different file types
+
+### Technical
+
+- New `LfsService` for handling LFS file downloads via Azure DevOps API
+- New `LfsCache` with configurable size limits and LRU eviction
+- File handler registry pattern with initial handlers:
+  - `PdfFileHandler` - PDF file support (MVP)
+  - `ImageFileHandler` - Image file support (scaffold for future)
+  - `FallbackBinaryHandler` - Graceful handling of unsupported file types
+- Extended `AzureDevOpsClient` with `getFileContentWithLfs()` method
+- Integrated LFS detection and handling into `PullRequestViewerPanel`
+
 ## [1.3.0] - 2025-12-10
 
 ### Added

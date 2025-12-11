@@ -8,6 +8,7 @@ import {
 import { PullRequestViewerPanel } from "./views/pullRequestViewerPanel";
 import { PRCommentController } from "./providers/prCommentController";
 import { CommentEventCoordinator } from "./services/commentEventCoordinator";
+import { LfsCache } from "./services/lfs/lfsCache";
 
 let pullRequestProvider: PullRequestProvider;
 let authProvider: AzureDevOpsAuthProvider;
@@ -159,6 +160,33 @@ export async function activate(context: vscode.ExtensionContext) {
 				);
 			},
 		),
+		vscode.commands.registerCommand("azureDevOpsPRs.clearLfsCache", async () => {
+			try {
+				const lfsCache = new LfsCache(context);
+				const stats = lfsCache.getStats();
+
+				if (stats.fileCount === 0) {
+					vscode.window.showInformationMessage("LFS cache is already empty");
+					return;
+				}
+
+				const action = await vscode.window.showWarningMessage(
+					`Clear LFS cache? This will remove ${stats.fileCount} cached file(s) (${stats.totalSizeMB.toFixed(2)} MB)`,
+					"Clear Cache",
+					"Cancel"
+				);
+
+				if (action === "Clear Cache") {
+					lfsCache.clear();
+					vscode.window.showInformationMessage("LFS cache cleared successfully");
+				}
+			} catch (error) {
+				console.error("[Extension] Failed to clear LFS cache:", error);
+				vscode.window.showErrorMessage(
+					`Failed to clear LFS cache: ${error instanceof Error ? error.message : String(error)}`
+				);
+			}
+		}),
 		// Watch for configuration changes
 		vscode.workspace.onDidChangeConfiguration((e) => {
 			if (e.affectsConfiguration("azureDevOpsPRViewer.autoRefreshInterval")) {

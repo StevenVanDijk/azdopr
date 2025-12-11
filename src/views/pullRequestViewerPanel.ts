@@ -15,6 +15,9 @@ import {
     getThreadStatusLabel,
     cleanCommentContent,
 } from "../utils/commentFormatter";
+import { LfsService } from "../services/lfs/lfsService";
+import { FileHandlerRegistry, type PRContext } from "../services/lfs/fileTypeHandlers";
+import { PdfFileHandler } from "../services/lfs/handlers/pdfHandler";
 
 export class PullRequestViewerPanel {
     private static _currentPanel: PullRequestViewerPanel | undefined;
@@ -24,6 +27,8 @@ export class PullRequestViewerPanel {
         { content: string; timestamp: number; prId: number }
     > = new Map();
     private static _markedPromise: Promise<any> | undefined;
+    private static _lfsService: LfsService | undefined;
+    private static _fileHandlerRegistry: FileHandlerRegistry | undefined;
 
     public static get currentPanel(): PullRequestViewerPanel | undefined {
         return PullRequestViewerPanel._currentPanel;
@@ -514,6 +519,18 @@ export class PullRequestViewerPanel {
             const isDeleted = changeType.includes("delete");
             const isRenamed = changeType.includes("rename");
 
+            // Check if file is potentially an LFS file (by extension)
+            const potentiallyLfs = this._isPotentiallyLfsFile(path);
+
+            if (potentiallyLfs) {
+                // Try to handle as LFS file
+                const handled = await this._handleLfsFile(path, changeType, originalPath);
+                if (handled) {
+                    return; // Successfully handled as LFS file
+                }
+                // Fall through to normal handling if LFS handling failed
+            }
+
             // Get branch names for display in URIs
             const sourceBranch = this.pullRequest.sourceRefName
                 ? this.pullRequest.sourceRefName.replace("refs/heads/", "")
@@ -723,6 +740,145 @@ export class PullRequestViewerPanel {
             console.error("Error opening file diff:", error);
             vscode.window.showErrorMessage(`Failed to open diff: ${friendlyMessage}`);
         }
+    }
+
+    /**
+     * Check if a file path is potentially an LFS file based on extension
+     */
+    private _isPotentiallyLfsFile(path: string): boolean {
+        const lfsExtensions = [
+            '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx',
+            '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.ico',
+            '.mp4', '.mov', '.avi', '.mkv', '.webm',
+            '.mp3', '.wav', '.flac', '.zip', '.tar', '.gz'
+        ];
+        const lowerPath = path.toLowerCase();
+        return lfsExtensions.some(ext => lowerPath.endsWith(ext));
+    }
+
+    /**
+     * Handle LFS file display
+     * Returns true if successfully handled, false if should fall back to normal diff
+     */
+    private async _handleLfsFile(
+        path: string,
+        changeType: string,
+        originalPath?: string
+    ): Promise<boolean> {
+        try {
+            // Skip deleted files (can't preview them)
+            if (changeType.includes("delete")) {
+                vscode.window.showInformationMessage(
+                    `Deleted files cannot be previewed. File: ${path}`
+                );
+                return true; // Handled (by showing message)
+            }
+
+            const sourceVersion = this.pullRequest.lastMergeSourceCommit?.commitId
+                || this.pullRequest.sourceRefName.replace("refs/heads/", "");
+
+            await vscode.window.withProgress(
+                {
+                    location: vscode.ProgressLocation.Notification,
+                    title: `Downloading LFS file: ${path}...`,
+                    cancellable: false,
+                },
+                async (progress) => {
+                    progress.report({ increment: 10 });
+
+                    // Step 1: Fetch file content (might be LFS pointer)
+                    const content = await this.azureDevOpsClient.getFileContent(
+                        this.pullRequest.repository.project.id,
+                        this.pullRequest.repository.id,
+                        path,
+                        sourceVersion
+                    );
+
+                    progress.report({ increment: 30 });
+
+                    // Step 2: Get LFS service instance
+                    const lfsService = this._getLfsService();
+
+                    // Step 3: Check if it's actually an LFS pointer
+                    if (!lfsService.isLfsPointer(content)) {
+                        console.log('[PRViewerPanel] File is not LFS, falling back to normal diff');
+                        return false; // Not LFS, use normal handling
+                    }
+
+                    console.log('[PRViewerPanel] Detected LFS pointer file');
+                    progress.report({ increment: 50, message: 'Resolving LFS file...' });
+
+                    // Step 4: Download actual LFS content
+                    const lfsContent = await lfsService.downloadLfsFile(
+                        this.pullRequest.repository.project.id,
+                        this.pullRequest.repository.id,
+                        path,
+                        sourceVersion
+                    );
+
+                    progress.report({ increment: 80, message: 'Opening file...' });
+
+                    // Step 5: Get appropriate handler and display
+                    const handler = this._getFileHandlerRegistry().getHandler(path);
+                    if (!handler) {
+                        vscode.window.showWarningMessage(
+                            `No viewer available for ${path}. File type not yet supported.`
+                        );
+                        return true; // Handled (by showing message)
+                    }
+
+                    const prContext: PRContext = {
+                        pullRequestId: this.pullRequest.pullRequestId,
+                        projectId: this.pullRequest.repository.project.id,
+                        repositoryId: this.pullRequest.repository.id,
+                        repositoryName: this.pullRequest.repository.name,
+                        filePath: path,
+                        version: sourceVersion,
+                    };
+
+                    await handler.displayFile(lfsContent, path, prContext);
+
+                    progress.report({ increment: 100 });
+                    return true; // Successfully handled
+                }
+            );
+
+            return true;
+        } catch (error) {
+            console.error('[PRViewerPanel] LFS file handling failed:', error);
+            vscode.window.showErrorMessage(
+                `Failed to load LFS file: ${error instanceof Error ? error.message : String(error)}`
+            );
+            return true; // Handled (by showing error)
+        }
+    }
+
+    /**
+     * Get or create LFS service singleton
+     */
+    private _getLfsService(): LfsService {
+        if (!PullRequestViewerPanel._lfsService) {
+            PullRequestViewerPanel._lfsService = new LfsService(
+                this.azureDevOpsClient,
+                this._getFileHandlerRegistry()
+            );
+        }
+        return PullRequestViewerPanel._lfsService;
+    }
+
+    /**
+     * Get or create file handler registry singleton
+     */
+    private _getFileHandlerRegistry(): FileHandlerRegistry {
+        if (!PullRequestViewerPanel._fileHandlerRegistry) {
+            const registry = new FileHandlerRegistry();
+            // Register handlers in order of specificity
+            registry.register(new PdfFileHandler());
+            // Future: registry.register(new ImageFileHandler());
+            // Future: registry.register(new FallbackBinaryHandler());
+            PullRequestViewerPanel._fileHandlerRegistry = registry;
+        }
+        return PullRequestViewerPanel._fileHandlerRegistry;
     }
 
     private _getStyles(): string {
