@@ -1,7 +1,5 @@
 # Azure DevOps PR Viewer
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 View and review all your organization's Azure DevOps pull requests directly in VS Code. No more browser switching.
 
 ## Features
