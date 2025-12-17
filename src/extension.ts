@@ -17,10 +17,51 @@ let azureDevOpsClient: AzureDevOpsClient;
 let commentController: PRCommentController;
 let commentEventCoordinator: CommentEventCoordinator;
 
+/**
+ * Extension activation function
+ *
+ * ## Initialization Flow & Component Dependencies
+ *
+ * The components must be initialized in this specific order due to dependencies:
+ *
+ * ```
+ * 1. Authentication Provider (no dependencies)
+ *    ↓
+ * 2. Azure DevOps Client (depends on: Auth Provider)
+ *    ↓
+ * 3. Pull Request Provider (depends on: Client, Auth Provider)
+ *    ├─ Register Tree View
+ *    ↓
+ * 4. Comment Controller (depends on: Client)
+ *    ├─ Initialize asynchronously (non-blocking)
+ *    ↓
+ * 5. Comment Event Coordinator (depends on: Comment Controller)
+ *    ├─ Handles document open/close events
+ *    ├─ Debounces comment loading
+ *    ↓
+ * 6. Register Commands (depends on: all above components)
+ *    ├─ Sign in/out
+ *    ├─ Refresh PRs
+ *    ├─ View/Open PRs
+ *    ├─ Comment operations
+ *    ├─ LFS cache management
+ *    ↓
+ * 7. Setup Auto-refresh (optional, based on config)
+ * ```
+ *
+ * ## Critical Notes
+ *
+ * - **Comment Controller** is initialized asynchronously to avoid blocking extension activation
+ * - **Event Coordinator** must be initialized AFTER Comment Controller to handle document events
+ * - **Auto-refresh** setup happens last since it depends on PR Provider being fully initialized
+ * - All disposables are collected in context.subscriptions for proper cleanup
+ *
+ * @param context - VS Code extension context for managing lifecycle
+ */
 export async function activate(context: vscode.ExtensionContext) {
 	logger.info("Azure DevOps PR Viewer extension is now active");
 
-	// Initialize authentication provider
+	// Step 1: Initialize authentication provider
 	authProvider = new AzureDevOpsAuthProvider();
 
 	// Set initial authentication context

@@ -27,11 +27,44 @@ export interface LfsPointerInfo {
 /**
  * Service for handling Git LFS files
  *
- * This service provides:
+ * ## Architecture: Extensible File Handler Registry Pattern
+ *
+ * This service uses a registry pattern to handle different file types:
+ *
+ * ```
+ * LfsService (coordinates)
+ *    ↓
+ * FileHandlerRegistry (dispatches to handlers)
+ *    ↓
+ * FileTypeHandler implementations:
+ *    ├─ PdfHandler (converts PDFs to data URIs for display)
+ *    ├─ ImageHandler (converts images to data URIs)
+ *    └─ FallbackBinaryHandler (base64 encode other binaries)
+ * ```
+ *
+ * **Adding a new file type:**
+ * 1. Create a handler class implementing FileTypeHandler interface
+ * 2. Register it in fileTypeHandlers.ts
+ * 3. Add the file extension to azureDevOpsPRViewer.lfs.supportedTypes config
+ *
+ * ## Data Flow
+ *
+ * 1. **Detection**: Check if file content is an LFS pointer (3-line format)
+ * 2. **Parsing**: Extract OID (SHA256 hash) and size from pointer
+ * 3. **Cache Check**: Look for already-downloaded file in LfsCache
+ * 4. **Download**: If not cached, use Azure DevOps API with `resolveLfs=true`
+ * 5. **Handler Dispatch**: FileHandlerRegistry selects handler based on file extension
+ * 6. **Processing**: Handler converts binary to displayable format (e.g., data URI)
+ * 7. **Caching**: Store processed result in LfsCache (500MB limit by default)
+ *
+ * ## Features
+ *
  * - Detection of LFS pointer files
  * - Parsing of LFS pointer metadata
  * - Downloading actual LFS file content via Azure DevOps API
  * - Caching of downloaded files for performance
+ * - Extensible file type handler system
+ * - Automatic cache size management
  * - Optional local checkout fallback (future enhancement)
  */
 export class LfsService {

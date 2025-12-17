@@ -1,6 +1,7 @@
 import axios, { type AxiosInstance } from "axios";
 import * as vscode from "vscode";
 import type { AzureDevOpsAuthProvider } from "../auth/authProvider";
+import { COMMENT_TYPE, THREAD_STATUS } from "../constants/azureDevOpsConstants";
 import { Logger } from "../utils/logger";
 
 const logger = Logger.getInstance();
@@ -417,7 +418,7 @@ export class AzureDevOpsClient {
 
 				if (includedProjects.length > 0) {
 					projects = projects.filter((p) => includedProjects.includes(p.name));
-					console.log(
+					logger.info(
 						`Filtered to ${projects.length} projects: ${projects.map((p) => p.name).join(", ")}`,
 					);
 				}
@@ -526,11 +527,11 @@ export class AzureDevOpsClient {
 		const url = `${this.getBaseUrl()}/${projectId}/_apis/git/repositories/${repositoryId}/pullrequests/${pullRequestId}/threads?api-version=7.0`;
 		const response = await this.axiosInstance.get(url, { headers });
 
-		console.log(`API returned ${response.data.value.length} threads for PR ${pullRequestId}`);
+		logger.debug(`API returned ${response.data.value.length} threads for PR ${pullRequestId}`);
 
 		return response.data.value.map((thread: AzDOThread) => {
 			// Log thread details for debugging
-			console.log(
+			logger.debug(
 				`Thread ${thread.id}: has ${thread.comments?.length || 0} comments, isDeleted: ${(thread as unknown as { isDeleted?: boolean }).isDeleted}, status: ${thread.status}`,
 			);
 
@@ -563,7 +564,7 @@ export class AzureDevOpsClient {
 
 		try {
 			const response = await this.axiosInstance.get(url, { headers });
-			console.log(`API returned ${response.data.value.length} updates for PR ${pullRequestId}`);
+			logger.debug(`API returned ${response.data.value.length} updates for PR ${pullRequestId}`);
 
 			return response.data.value.map((update: AzDOUpdate) => ({
 				updateId: update.updateId,
@@ -572,7 +573,7 @@ export class AzureDevOpsClient {
 				description: update.description,
 			}));
 		} catch (error) {
-			console.error("Failed to fetch PR updates:", error);
+			logger.error("Failed to fetch PR updates", error);
 			return [];
 		}
 	}
@@ -594,9 +595,9 @@ export class AzureDevOpsClient {
 				result: status.state,
 				url: status.targetUrl || "",
 			}));
-		} catch (error) {
+		} catch {
 			// Statuses endpoint might not be available for all organizations
-			console.warn("Failed to fetch PR statuses:", error);
+			logger.warn("Failed to fetch PR statuses");
 			return [];
 		}
 	}
@@ -633,7 +634,7 @@ export class AzureDevOpsClient {
 			// Return a simple diff representation
 			return `Source (${sourceCommit.substring(0, 7)}):\n${sourceContent}\n\nTarget (${targetCommit.substring(0, 7)}):\n${targetContent}`;
 		} catch (error) {
-			console.error("Failed to fetch file diff:", error);
+			logger.error("Failed to fetch file diff", error);
 			return "Unable to fetch diff";
 		}
 	}
@@ -669,10 +670,10 @@ export class AzureDevOpsClient {
 				{
 					parentCommentId: 0,
 					content: commentText,
-					commentType: 1, // 1 = text comment
+					commentType: COMMENT_TYPE.TEXT,
 				},
 			],
-			status: 1, // 1 = active
+			status: THREAD_STATUS.ACTIVE,
 		};
 
 		// Add thread context for line-level comments
@@ -762,7 +763,7 @@ export class AzureDevOpsClient {
 
 		const requestBody = {
 			content: commentText,
-			commentType: 1, // 1 = text comment
+			commentType: COMMENT_TYPE.TEXT,
 		};
 
 		const response = await this.axiosInstance.post(url, requestBody, {
@@ -933,7 +934,7 @@ export class AzureDevOpsClient {
 
 				// If content exists but is not a string, or is empty, return empty string
 				if (content !== null && content !== undefined) {
-					console.warn(`Unexpected content type for file ${path}:`, typeof content);
+					logger.warn(`Unexpected content type for file ${path}: ${typeof content}`);
 				}
 				return "";
 			}
@@ -1048,7 +1049,7 @@ export class AzureDevOpsClient {
 				}
 
 				if (content !== null && content !== undefined) {
-					console.warn(`Unexpected content type for file ${path}:`, typeof content);
+					logger.warn(`Unexpected content type for file ${path}: ${typeof content}`);
 				}
 				return "";
 			}
@@ -1163,7 +1164,7 @@ export class AzureDevOpsClient {
 			const contentType = response.headers["content-type"] || "image/png";
 			const dataUri = `data:${contentType};base64,${base64}`;
 
-			console.log(
+			logger.debug(
 				`[AzureDevOpsClient] Successfully converted image to data URI (${base64.length} bytes)`,
 			);
 

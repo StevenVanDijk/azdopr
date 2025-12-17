@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
 import type { AzureDevOpsAuthProvider } from "../auth/authProvider";
+import { REVIEWER_VOTE } from "../constants/azureDevOpsConstants";
 import { MIN_REFRESH_INTERVAL_MS } from "../constants/cacheConfig";
 import type { AzureDevOpsClient, PullRequest } from "../services/azureDevOpsClient";
+import { formatErrorMessage } from "../utils/errorFormatter";
 
 export class PullRequestProvider implements vscode.TreeDataProvider<PRTreeItem> {
 	private readonly _onDidChangeTreeData: vscode.EventEmitter<
@@ -113,8 +115,7 @@ export class PullRequestProvider implements vscode.TreeDataProvider<PRTreeItem> 
 
 			return this.getGroupedByProjectView();
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : `[Non-Error type thrown: ${typeof error}]`;
+			const errorMessage = formatErrorMessage(error);
 			return [new PRTreeItem(`Error: ${errorMessage}`, "", vscode.TreeItemCollapsibleState.None)];
 		}
 	}
@@ -138,20 +139,57 @@ export class PullRequestProvider implements vscode.TreeDataProvider<PRTreeItem> 
 		this.pullRequests = await this.azureDevOpsClient.getAllPullRequests();
 	}
 
+	/**
+	 * Create hierarchical tree view grouped by Project → Repository → PRs
+	 *
+	 * ## Data Structure
+	 *
+	 * This method uses a nested Map structure to build the hierarchy:
+	 *
+	 * ```
+	 * Map<ProjectName, Map<RepositoryName, PullRequest[]>>
+	 *   │
+	 *   ├─ "MyProject" →  Map<RepoName, PR[]>
+	 *   │                  │
+	 *   │                  ├─ "frontend" → [PR #123, PR #124]
+	 *   │                  └─ "backend"  → [PR #125]
+	 *   │
+	 *   └─ "OtherProject" → Map<RepoName, PR[]>
+	 *                       └─ "api" → [PR #126, PR #127]
+	 * ```
+	 *
+	 * ## Sorting Strategy
+	 *
+	 * 1. **Projects**: Alphabetical by project name
+	 * 2. **Repositories**: Alphabetical by repository name (within each project)
+	 * 3. **Pull Requests**: By creation date, oldest first (within each repository)
+	 *
+	 * ## Tree Item Hierarchy
+	 *
+	 * ```
+	 * Projects (expanded by default)
+	 *   └─ Repositories (collapsed by default, show PR count)
+	 *        └─ Individual PRs (show title, author, age)
+	 * ```
+	 *
+	 * @returns Array of tree items representing the project hierarchy
+	 */
 	private getGroupedByProjectView(): PRTreeItem[] {
-		// Group PRs by project and repository
+		// Build nested Map: Project → Repository → PRs
 		const projectMap = new Map<string, Map<string, PullRequest[]>>();
 
 		for (const pr of this.pullRequests) {
 			const projectName = pr.repository.project.name;
 			const repoName = pr.repository.name;
 
+			// Get or create the repository map for this project
 			let repoMap = projectMap.get(projectName);
 			if (!repoMap) {
 				repoMap = new Map();
 				projectMap.set(projectName, repoMap);
 			}
 
+			// Get or create the PR array for this repository
 			if (!repoMap.has(repoName)) {
 				repoMap.set(repoName, []);
 			}
@@ -280,15 +318,15 @@ export class PullRequestProvider implements vscode.TreeDataProvider<PRTreeItem> 
 
 	private getVoteIcon(vote: number): string {
 		switch (vote) {
-			case 10:
+			case REVIEWER_VOTE.APPROVED:
 				return "✅"; // Approved
-			case 5:
+			case REVIEWER_VOTE.APPROVED_WITH_SUGGESTIONS:
 				return "👍"; // Approved with suggestions
-			case 0:
+			case REVIEWER_VOTE.NO_VOTE:
 				return "⏸️"; // No vote
-			case -5:
+			case REVIEWER_VOTE.WAITING_FOR_AUTHOR:
 				return "⏳"; // Waiting for author
-			case -10:
+			case REVIEWER_VOTE.REJECTED:
 				return "❌"; // Rejected
 			default:
 				return "❓";
