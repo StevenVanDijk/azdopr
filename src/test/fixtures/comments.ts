@@ -1,5 +1,5 @@
+import { COMMENT_TYPE, THREAD_STATUS } from "../../constants/azureDevOpsConstants";
 import type { PRComment, PRThread } from "../../services/azureDevOpsClient";
-import { THREAD_STATUS, COMMENT_TYPE } from "../../constants/azureDevOpsConstants";
 
 export const mockComment: PRComment = {
 	id: 1,
@@ -148,9 +148,7 @@ export function createThreadWithComments(commentCount: number): PRThread {
 				id: i,
 				parentCommentId: 1,
 				content: `Reply ${i - 1}`,
-				publishedDate: new Date(
-					new Date("2024-01-15T12:00:00Z").getTime() + i * 60000,
-				),
+				publishedDate: new Date(new Date("2024-01-15T12:00:00Z").getTime() + i * 60000),
 			}),
 		);
 	}
@@ -161,10 +159,7 @@ export function createThreadWithComments(commentCount: number): PRThread {
 /**
  * Create an active thread with file context
  */
-export function createActiveThreadWithContext(
-	filePath: string,
-	line: number,
-): PRThread {
+export function createActiveThreadWithContext(filePath: string, line: number): PRThread {
 	return createMockThread({
 		id: 300,
 		status: THREAD_STATUS.ACTIVE,

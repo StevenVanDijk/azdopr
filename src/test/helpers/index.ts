@@ -2,48 +2,47 @@
  * Central export hub for all test helpers
  */
 
-// VS Code Stubs
+// Assertions
 export {
-	createVSCodeStubs,
-	resetVSCodeStubs,
-	createMockAuthSession,
-	createMockConfiguration,
-	createMockExtensionContext,
-	createMockTextDocument,
-	createMockCommentThread,
-} from "./vscodeStubs";
+	assertArrayContains,
+	assertArrayDoesNotContain,
+	assertDatesEqual,
+	assertDefined,
+	assertDoesNotMatch,
+	assertHasProperty,
+	assertInRange,
+	assertMatches,
+	assertRejectsWithMessage,
+	assertThrowsWithMessage,
+} from "./assertions";
 
 // Azure DevOps Stubs
 export {
 	createAxiosStub,
-	stubAxiosCreate,
+	createMockError,
+	createMockResponse,
 	resetAxiosStub,
+	stubAxiosCreate,
 	stubAzureDevOpsEndpoints,
 	stubAzureDevOpsError,
-	createMockResponse,
-	createMockError,
 } from "./azureDevOpsStubs";
 
 // Time Helpers
 export {
-	TestClock,
-	createTestClock,
-	withFakeTimers,
 	advanceTime,
 	advanceTimeInSteps,
+	createTestClock,
 	flushTimers,
+	TestClock,
+	withFakeTimers,
 } from "./timeHelpers";
-
-// Assertions
+// VS Code Stubs
 export {
-	assertDefined,
-	assertArrayContains,
-	assertArrayDoesNotContain,
-	assertHasProperty,
-	assertDatesEqual,
-	assertThrowsWithMessage,
-	assertRejectsWithMessage,
-	assertInRange,
-	assertMatches,
-	assertDoesNotMatch,
-} from "./assertions";
+	createMockAuthSession,
+	createMockCommentThread,
+	createMockConfiguration,
+	createMockExtensionContext,
+	createMockTextDocument,
+	createVSCodeStubs,
+	resetVSCodeStubs,
+} from "./vscodeStubs";

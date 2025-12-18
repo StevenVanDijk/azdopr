@@ -1,4 +1,5 @@
 import * as assert from "node:assert";
+import { suite, test } from "mocha";
 import { processCommentContent } from "../../../utils/markdownProcessor";
 
 suite("markdownProcessor", () => {
@@ -52,9 +53,7 @@ suite("markdownProcessor", () => {
 			const orgUrl = "https://dev.azure.com/myorg";
 			const result = processCommentContent(content, orgUrl);
 
-			assert.ok(
-				result.value.includes("[#123](https://dev.azure.com/myorg/_workitems/edit/123)"),
-			);
+			assert.ok(result.value.includes("[#123](https://dev.azure.com/myorg/_workitems/edit/123)"));
 		});
 
 		test("should linkify multiple work items", () => {

@@ -17,25 +17,14 @@ export function assertDefined<T>(
 /**
  * Assert that an array contains a specific item
  */
-export function assertArrayContains<T>(
-	array: T[],
-	item: T,
-	message?: string,
-): void {
-	assert.ok(
-		array.includes(item),
-		message || `Array should contain item: ${JSON.stringify(item)}`,
-	);
+export function assertArrayContains<T>(array: T[], item: T, message?: string): void {
+	assert.ok(array.includes(item), message || `Array should contain item: ${JSON.stringify(item)}`);
 }
 
 /**
  * Assert that an array does not contain a specific item
  */
-export function assertArrayDoesNotContain<T>(
-	array: T[],
-	item: T,
-	message?: string,
-): void {
+export function assertArrayDoesNotContain<T>(array: T[], item: T, message?: string): void {
 	assert.ok(
 		!array.includes(item),
 		message || `Array should not contain item: ${JSON.stringify(item)}`,
@@ -50,10 +39,7 @@ export function assertHasProperty<T extends object, K extends string>(
 	property: K,
 	message?: string,
 ): asserts obj is T & Record<K, unknown> {
-	assert.ok(
-		property in obj,
-		message || `Object should have property: ${property}`,
-	);
+	assert.ok(property in obj, message || `Object should have property: ${property}`);
 }
 
 /**
@@ -140,12 +126,7 @@ export async function assertRejectsWithMessage(
 /**
  * Assert that a value is within a range
  */
-export function assertInRange(
-	value: number,
-	min: number,
-	max: number,
-	message?: string,
-): void {
+export function assertInRange(value: number, min: number, max: number, message?: string): void {
 	assert.ok(
 		value >= min && value <= max,
 		message || `Value ${value} should be between ${min} and ${max}`,
@@ -155,21 +136,13 @@ export function assertInRange(
 /**
  * Assert that a string matches a pattern
  */
-export function assertMatches(
-	value: string,
-	pattern: RegExp,
-	message?: string,
-): void {
+export function assertMatches(value: string, pattern: RegExp, message?: string): void {
 	assert.match(value, pattern, message);
 }
 
 /**
  * Assert that a string does not match a pattern
  */
-export function assertDoesNotMatch(
-	value: string,
-	pattern: RegExp,
-	message?: string,
-): void {
+export function assertDoesNotMatch(value: string, pattern: RegExp, message?: string): void {
 	assert.doesNotMatch(value, pattern, message);
 }

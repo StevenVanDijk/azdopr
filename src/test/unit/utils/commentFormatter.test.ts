@@ -1,11 +1,12 @@
 import * as assert from "node:assert";
+import { setup, suite, teardown, test } from "mocha";
 import * as sinon from "sinon";
 import {
-	formatTimeAgo,
-	getThreadStatusLabel,
-	getThreadStatusIcon,
 	cleanCommentContent,
 	formatCommentHeaderMarkdown,
+	formatTimeAgo,
+	getThreadStatusIcon,
+	getThreadStatusLabel,
 } from "../../../utils/commentFormatter";
 import { createMockComment } from "../../fixtures";
 
@@ -219,7 +220,7 @@ suite("commentFormatter", () => {
 
 		test("should remove multiple GUID mentions", () => {
 			const content =
-				"@<5B8B71B7-3EB7-6574-B377-A695965DBDA8> and @<ABCD1234-5678-90EF-GHIJ-KLMNOPQRSTUV> please review";
+				"@<5B8B71B7-3EB7-6574-B377-A695965DBDA8> and @<ABCD1234-5678-90EF-1234-567890ABCDEF> please review";
 			const result = cleanCommentContent(content);
 			assert.strictEqual(result, "@user and @user please review");
 		});

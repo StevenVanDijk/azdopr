@@ -86,7 +86,7 @@ export interface PRThread {
 	publishedDate: Date;
 	lastUpdatedDate: Date;
 	comments: PRComment[];
-	status: string;
+	status: number;
 	threadContext?: {
 		filePath?: string;
 		leftFileStart?: { line: number; offset: number };
@@ -120,7 +120,7 @@ export interface PRComment {
 	content: string;
 	publishedDate: Date;
 	lastUpdatedDate: Date;
-	commentType: string;
+	commentType: number;
 }
 
 export interface PRBuildStatus {
@@ -208,7 +208,7 @@ interface AzDOComment {
 	content: string;
 	publishedDate: string;
 	lastUpdatedDate: string;
-	commentType: string;
+	commentType: number;
 }
 
 interface AzDOThread {
@@ -216,7 +216,7 @@ interface AzDOThread {
 	publishedDate: string;
 	lastUpdatedDate: string;
 	comments: AzDOComment[];
-	status: string;
+	status: number;
 	threadContext?: {
 		filePath?: string;
 		leftFileStart?: { line: number; offset: number };

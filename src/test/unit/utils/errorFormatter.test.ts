@@ -1,8 +1,6 @@
 import * as assert from "node:assert";
-import {
-	formatErrorMessage,
-	formatErrorWithPrefix,
-} from "../../../utils/errorFormatter";
+import { suite, test } from "mocha";
+import { formatErrorMessage, formatErrorWithPrefix } from "../../../utils/errorFormatter";
 
 suite("errorFormatter", () => {
 	suite("formatErrorMessage", () => {
@@ -103,12 +101,10 @@ suite("errorFormatter", () => {
 
 		test("should handle long prefix", () => {
 			const error = new Error("Error message");
-			const longPrefix = "This is a very long prefix that provides detailed context about the error";
+			const longPrefix =
+				"This is a very long prefix that provides detailed context about the error";
 			const result = formatErrorWithPrefix(longPrefix, error);
-			assert.strictEqual(
-				result,
-				`${longPrefix}: Error message`,
-			);
+			assert.strictEqual(result, `${longPrefix}: Error message`);
 		});
 
 		test("should handle prefix with special characters", () => {

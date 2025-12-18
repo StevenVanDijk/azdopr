@@ -1,8 +1,8 @@
 import type {
-	PullRequest,
-	PRIteration,
 	PRFileChange,
+	PRIteration,
 	Project,
+	PullRequest,
 	Repository,
 } from "../../services/azureDevOpsClient";
 
@@ -127,18 +127,14 @@ export function createMockPR(overrides?: Partial<PullRequest>): PullRequest {
 /**
  * Factory function to create a mock PR iteration with custom overrides
  */
-export function createMockIteration(
-	overrides?: Partial<PRIteration>,
-): PRIteration {
+export function createMockIteration(overrides?: Partial<PRIteration>): PRIteration {
 	return { ...mockPRIteration, ...overrides };
 }
 
 /**
  * Factory function to create a mock file change with custom overrides
  */
-export function createMockFileChange(
-	overrides?: Partial<PRFileChange>,
-): PRFileChange {
+export function createMockFileChange(overrides?: Partial<PRFileChange>): PRFileChange {
 	return { ...mockPRFileChange, ...overrides };
 }
 
@@ -152,9 +148,7 @@ export function createMockProject(overrides?: Partial<Project>): Project {
 /**
  * Factory function to create a mock repository with custom overrides
  */
-export function createMockRepository(
-	overrides?: Partial<Repository>,
-): Repository {
+export function createMockRepository(overrides?: Partial<Repository>): Repository {
 	return { ...mockRepository, ...overrides };
 }
 

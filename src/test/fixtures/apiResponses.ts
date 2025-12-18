@@ -148,17 +148,14 @@ export const mockLfsPointerResponse = {
 /**
  * Helper function to create an Axios response wrapper
  */
-export function createAxiosResponse<T>(
-	data: T,
-	status = 200,
-	statusText = "OK",
-): AxiosResponse<T> {
+export function createAxiosResponse<T>(data: T, status = 200, statusText = "OK"): AxiosResponse<T> {
 	return {
 		data,
 		status,
 		statusText,
 		headers: {},
 		config: {
+			// biome-ignore lint/suspicious/noExplicitAny: Axios config type requires any for headers
 			headers: {} as any,
 		},
 	};
@@ -168,19 +165,13 @@ export function createAxiosResponse<T>(
  * Create a 404 error response
  */
 export function create404Response(message = "Not Found"): AxiosResponse {
-	return createAxiosResponse(
-		{ message, typeKey: "NotFound" },
-		404,
-		"Not Found",
-	);
+	return createAxiosResponse({ message, typeKey: "NotFound" }, 404, "Not Found");
 }
 
 /**
  * Create a 500 error response
  */
-export function create500Response(
-	message = "Internal Server Error",
-): AxiosResponse {
+export function create500Response(message = "Internal Server Error"): AxiosResponse {
 	return createAxiosResponse(
 		{ message, typeKey: "InternalServerError" },
 		500,
@@ -192,6 +183,7 @@ export function create500Response(
  * Create a network error (simulates timeout or connection failure)
  */
 export function createNetworkError(message = "Network Error"): Error {
+	// biome-ignore lint/suspicious/noExplicitAny: Need to add custom properties to Error object
 	const error: any = new Error(message);
 	error.code = "ECONNABORTED";
 	error.isAxiosError = true;
@@ -202,9 +194,5 @@ export function createNetworkError(message = "Network Error"): Error {
  * Create an unauthorized error response
  */
 export function create401Response(message = "Unauthorized"): AxiosResponse {
-	return createAxiosResponse(
-		{ message, typeKey: "Unauthorized" },
-		401,
-		"Unauthorized",
-	);
+	return createAxiosResponse({ message, typeKey: "Unauthorized" }, 401, "Unauthorized");
 }

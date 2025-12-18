@@ -1,5 +1,5 @@
-import * as sinon from "sinon";
 import axios, { type AxiosInstance, type AxiosResponse } from "axios";
+import * as sinon from "sinon";
 
 /**
  * Create a stubbed Axios instance for mocking Azure DevOps API calls
@@ -35,6 +35,7 @@ export function createAxiosStub(): {
 				eject: sinon.stub(),
 				clear: sinon.stub(),
 			},
+			// biome-ignore lint/suspicious/noExplicitAny: Partial mock for testing
 		} as any,
 	};
 
@@ -73,7 +74,11 @@ export function resetAxiosStub(createStub: sinon.SinonStub) {
  */
 export function stubAzureDevOpsEndpoints(
 	axiosStubs: ReturnType<typeof createAxiosStub>,
-	endpoints: Record<string, { method: "get" | "post" | "patch" | "delete"; response: any; status?: number }>,
+	endpoints: Record<
+		string,
+		// biome-ignore lint/suspicious/noExplicitAny: Test helper accepts any response type
+		{ method: "get" | "post" | "patch" | "delete"; response: any; status?: number }
+	>,
 ) {
 	for (const [url, config] of Object.entries(endpoints)) {
 		const response: AxiosResponse = {
@@ -81,6 +86,7 @@ export function stubAzureDevOpsEndpoints(
 			status: config.status || 200,
 			statusText: "OK",
 			headers: {},
+			// biome-ignore lint/suspicious/noExplicitAny: Axios config type requires any for headers
 			config: { headers: {} as any },
 		};
 
@@ -111,6 +117,7 @@ export function stubAzureDevOpsError(
 	statusCode: number,
 	message = "Error",
 ) {
+	// biome-ignore lint/suspicious/noExplicitAny: Need to add custom properties to Error object
 	const error: any = new Error(message);
 	error.response = {
 		data: { message, typeKey: getErrorType(statusCode) },
@@ -146,6 +153,7 @@ export function createMockResponse<T>(data: T, status = 200): AxiosResponse<T> {
 		status,
 		statusText: getStatusText(status),
 		headers: {},
+		// biome-ignore lint/suspicious/noExplicitAny: Axios config type requires any for headers
 		config: { headers: {} as any },
 	};
 }
@@ -154,6 +162,7 @@ export function createMockResponse<T>(data: T, status = 200): AxiosResponse<T> {
  * Create a mock error response
  */
 export function createMockError(statusCode: number, message = "Error"): Error {
+	// biome-ignore lint/suspicious/noExplicitAny: Need to add custom properties to Error object
 	const error: any = new Error(message);
 	error.response = {
 		data: { message, typeKey: getErrorType(statusCode) },

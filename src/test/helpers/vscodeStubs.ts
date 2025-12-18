@@ -119,14 +119,14 @@ export function resetVSCodeStubs(stubs: ReturnType<typeof createVSCodeStubs>) {
 
 	// Reset all window stubs
 	Object.values(stubs.window).forEach((stub) => {
-		if (stub && typeof stub.reset === "function") {
+		if (stub && typeof stub === "object" && "reset" in stub && typeof stub.reset === "function") {
 			stub.reset();
 		}
 	});
 
 	// Reset all workspace stubs
 	Object.values(stubs.workspace).forEach((stub) => {
-		if (stub && typeof stub.reset === "function") {
+		if (stub && typeof stub === "object" && "reset" in stub && typeof stub.reset === "function") {
 			stub.reset();
 		}
 	});
@@ -165,6 +165,7 @@ export function createMockAuthSession(
 		id: "test-user-id",
 		label: "test.user@example.com",
 	},
+	// biome-ignore lint/suspicious/noExplicitAny: Test helper returns mock object
 ): any {
 	return {
 		id: "test-session-id",
@@ -178,9 +179,12 @@ export function createMockAuthSession(
  * Create a mock VS Code configuration object
  */
 export function createMockConfiguration(
+	// biome-ignore lint/suspicious/noExplicitAny: Test helper uses any for flexible mock configuration
 	settings: Record<string, any> = {},
+	// biome-ignore lint/suspicious/noExplicitAny: Test helper returns mock object
 ): any {
 	return {
+		// biome-ignore lint/suspicious/noExplicitAny: Mock accepts any default value
 		get: sinon.stub().callsFake((key: string, defaultValue?: any) => {
 			return settings[key] !== undefined ? settings[key] : defaultValue;
 		}),
@@ -210,26 +214,30 @@ export function createMockExtensionContext(
 			update: sinon.stub().resolves(),
 			keys: sinon.stub().returns([]),
 			setKeysForSync: sinon.stub(),
+			// biome-ignore lint/suspicious/noExplicitAny: Partial mock for testing
 		} as any,
 		workspaceState: {
 			get: sinon.stub(),
 			update: sinon.stub().resolves(),
 			keys: sinon.stub().returns([]),
+			// biome-ignore lint/suspicious/noExplicitAny: Partial mock for testing
 		} as any,
 		secrets: {
 			get: sinon.stub(),
 			store: sinon.stub().resolves(),
 			delete: sinon.stub().resolves(),
 			onDidChange: sinon.stub().returns({ dispose: sinon.stub() }),
+			// biome-ignore lint/suspicious/noExplicitAny: Partial mock for testing
 		} as any,
+		// biome-ignore lint/suspicious/noExplicitAny: Partial mock for testing
 		extension: {} as any,
+		// biome-ignore lint/suspicious/noExplicitAny: Partial mock for testing
 		environmentVariableCollection: {} as any,
 		extensionMode: 3, // ExtensionMode.Test
 		storagePath,
 		globalStoragePath: storagePath,
 		logPath: "/tmp/test-logs",
-		asAbsolutePath: (relativePath: string) =>
-			`/tmp/test-extension/${relativePath}`,
+		asAbsolutePath: (relativePath: string) => `/tmp/test-extension/${relativePath}`,
 		logUri: { fsPath: "/tmp/test-logs", scheme: "file" } as vscode.Uri,
 	};
 }
@@ -242,6 +250,19 @@ export function createMockTextDocument(
 	content = "",
 	languageId = "typescript",
 ): Partial<vscode.TextDocument> {
+	const lines = content.split("\n");
+	const lineAtStub = sinon.stub().callsFake((lineOrPosition: number | vscode.Position) => {
+		const lineNumber = typeof lineOrPosition === "number" ? lineOrPosition : lineOrPosition.line;
+		return {
+			lineNumber,
+			text: lines[lineNumber] || "",
+			range: {},
+			rangeIncludingLineBreak: {},
+			firstNonWhitespaceCharacterIndex: 0,
+			isEmptyOrWhitespace: false,
+		};
+	});
+
 	return {
 		uri: { path: uri, scheme: "file" } as vscode.Uri,
 		fileName: uri,
@@ -252,8 +273,8 @@ export function createMockTextDocument(
 		isClosed: false,
 		save: sinon.stub().resolves(true),
 		eol: 1, // vscode.EndOfLine.LF
-		lineCount: content.split("\n").length,
-		lineAt: sinon.stub(),
+		lineCount: lines.length,
+		lineAt: lineAtStub as vscode.TextDocument["lineAt"],
 		offsetAt: sinon.stub(),
 		positionAt: sinon.stub(),
 		getText: sinon.stub().returns(content),
@@ -268,8 +289,11 @@ export function createMockTextDocument(
  */
 export function createMockCommentThread(
 	uri: string,
+	// biome-ignore lint/suspicious/noExplicitAny: Test helper uses any for flexible mock parameters
 	range: any,
+	// biome-ignore lint/suspicious/noExplicitAny: Test helper uses any for flexible mock parameters
 	comments: any[] = [],
+	// biome-ignore lint/suspicious/noExplicitAny: Test helper returns mock object
 ): any {
 	return {
 		uri: { path: uri, scheme: "file" },
