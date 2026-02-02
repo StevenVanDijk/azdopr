@@ -13,6 +13,9 @@
 # Claude AI configuration
 .claude/
 
+# Oh My Claude configs
+.omc/
+
 # Build outputs
 out/
 dist/

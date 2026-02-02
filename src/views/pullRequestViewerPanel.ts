@@ -17,6 +17,7 @@ import {
 	formatTimeAgo,
 	getThreadStatusLabel,
 } from "../utils/commentFormatter";
+import { sanitizeHtml, escapeHtml, autoLinkUrls } from '../utils/htmlSanitizer';
 import { Logger } from "../utils/logger";
 
 const logger = Logger.getInstance();
@@ -1891,6 +1892,47 @@ export class PullRequestViewerPanel {
                 word-wrap: break-word;
                 overflow-wrap: break-word;
             }
+            .comment-body a {
+                color: var(--vscode-textLink-foreground);
+                text-decoration: none;
+            }
+            .comment-body a:hover {
+                text-decoration: underline;
+                color: var(--vscode-textLink-activeForeground);
+            }
+            .comment-body code {
+                font-family: var(--vscode-editor-font-family, 'Consolas', 'Courier New', monospace);
+                font-size: 0.9em;
+                background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.15));
+                padding: 2px 4px;
+                border-radius: 3px;
+            }
+            .comment-body pre {
+                font-family: var(--vscode-editor-font-family, 'Consolas', 'Courier New', monospace);
+                font-size: 0.9em;
+                background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.15));
+                padding: 8px 12px;
+                border-radius: 4px;
+                overflow-x: auto;
+                white-space: pre;
+                margin: 8px 0;
+            }
+            .comment-body pre code {
+                background: transparent;
+                padding: 0;
+            }
+            .comment-body strong, .comment-body b {
+                font-weight: 600;
+            }
+            .comment-body em, .comment-body i {
+                font-style: italic;
+            }
+            .comment-body p {
+                margin: 0 0 8px 0;
+            }
+            .comment-body p:last-child {
+                margin-bottom: 0;
+            }
             .comment-reply-count {
                 font-size: 11px;
                 color: var(--vscode-descriptionForeground);
@@ -1981,7 +2023,13 @@ export class PullRequestViewerPanel {
             .comment-actions {
                 display: flex;
                 gap: 8px;
-                margin-top: 4px;
+                margin-top: 12px;
+                opacity: 0;
+                transition: opacity 0.15s ease-in-out;
+            }
+            .general-comment-thread:hover > .comment-actions,
+            .comment-reply:hover > .comment-actions {
+                opacity: 1;
             }
             .edit-comment-btn, .delete-comment-btn {
                 padding: 2px 8px;
@@ -1992,6 +2040,7 @@ export class PullRequestViewerPanel {
                 color: var(--vscode-foreground);
                 cursor: pointer;
                 opacity: 0.7;
+                transition: opacity 0.1s ease-in-out, background 0.1s ease-in-out;
             }
             .edit-comment-btn:hover, .delete-comment-btn:hover {
                 opacity: 1;
@@ -2376,6 +2425,9 @@ export class PullRequestViewerPanel {
 				const canEditFirstComment =
 					this.currentUserId && firstComment.author?.id === this.currentUserId;
 
+				// Check if this is a system comment (commentType === 2)
+				const isSystemComment = firstComment.commentType === 2;
+
 				// Get status info - only show badge for meaningful statuses
 				const statusLabel = getThreadStatusLabel(thread.status);
 				const statusNum =
@@ -2404,8 +2456,8 @@ export class PullRequestViewerPanel {
 
 				const timeAgo = formatTimeAgo(thread.lastUpdatedDate);
 
-				// Thread actions (resolve/unresolve)
-				const threadActionsHtml = `
+				// Thread actions (resolve/unresolve) - only show for non-system comments
+				const threadActionsHtml = isSystemComment ? '' : `
 					<div class="thread-actions">
 						${
 							!isResolved
@@ -2452,7 +2504,7 @@ export class PullRequestViewerPanel {
                                 <span class="comment-author">${this._escapeHtml(replyAuthor)}</span>
                                 <span class="comment-time">${replyTime}</span>
                             </div>
-                            <div class="comment-body">${this._escapeHtml(replyContent)}</div>
+                            <div class="comment-body" data-original-content="${escapeHtml(replyContent)}">${autoLinkUrls(sanitizeHtml(replyContent))}</div>
                             ${replyActionsHtml}
                         </div>`;
 						})
@@ -2487,7 +2539,7 @@ export class PullRequestViewerPanel {
                             ${threadActionsHtml}
                         </div>
                     </div>
-                    <div class="comment-body" data-comment-id="${firstComment.id}">${this._escapeHtml(content)}</div>
+                    <div class="comment-body" data-comment-id="${firstComment.id}" data-original-content="${escapeHtml(content)}">${autoLinkUrls(sanitizeHtml(content))}</div>
                     ${firstCommentActionsHtml}
                     ${repliesHtml}
                     ${replyFormHtml}
@@ -2791,7 +2843,7 @@ export class PullRequestViewerPanel {
                         const commentId = parseInt(editCommentBtn.getAttribute('data-comment-id'), 10);
                         const commentThread = editCommentBtn.closest('.general-comment-thread, .comment-reply');
                         const commentBody = commentThread ? commentThread.querySelector('.comment-body') : null;
-                        const currentContent = commentBody ? commentBody.textContent : '';
+                        const currentContent = commentBody ? (commentBody.getAttribute('data-original-content') || commentBody.textContent) : '';
                         const newContent = prompt('Edit your comment:', currentContent);
                         if (newContent !== null && newContent.trim() !== '') {
                             vscode.postMessage({ command: 'editComment', threadId: threadId, commentId: commentId, content: newContent });
