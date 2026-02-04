@@ -73,6 +73,13 @@ export class CommentThreadManager {
 	}
 
 	/**
+	 * Get all thread keys across all documents
+	 */
+	public getAllThreadKeys(): string[] {
+		return Array.from(this.threads.keys());
+	}
+
+	/**
 	 * Get a thread by key
 	 */
 	public getThread(threadKey: string): AzDOCommentThread | undefined {
@@ -160,8 +167,9 @@ export class CommentThreadManager {
 
 			// If existing comment is temporary, create real one
 			if (existingComment instanceof TemporaryComment) {
+				const identityResolver = this.buildIdentityResolver(newServerComments);
 				updatedComments.push(
-					new AzDOComment(serverComment, thread.threadId, thread, organizationUrl, currentUserId),
+					new AzDOComment(serverComment, thread.threadId, thread, organizationUrl, currentUserId, identityResolver),
 				);
 				hasChanges = true;
 				continue;
@@ -208,9 +216,24 @@ export class CommentThreadManager {
 		organizationUrl?: string,
 		currentUserId?: string,
 	): AzDOComment[] {
+		const identityResolver = this.buildIdentityResolver(serverComments);
 		return serverComments.map(
-			(comment) => new AzDOComment(comment, threadId, parent, organizationUrl, currentUserId),
+			(comment) => new AzDOComment(comment, threadId, parent, organizationUrl, currentUserId, identityResolver),
 		);
+	}
+
+	/**
+	 * Build an identity resolver map from server comments
+	 * Maps user GUIDs (lowercase) to display names
+	 */
+	private buildIdentityResolver(serverComments: PRComment[]): Map<string, string> {
+		const resolver = new Map<string, string>();
+		for (const comment of serverComments) {
+			if (comment.author?.id && comment.author?.displayName) {
+				resolver.set(comment.author.id.toLowerCase(), comment.author.displayName);
+			}
+		}
+		return resolver;
 	}
 
 	/**

@@ -22,6 +22,7 @@ export abstract class CommentBase implements vscode.Comment {
 	protected _body: string | vscode.MarkdownString;
 	protected _mode: vscode.CommentMode = vscode.CommentMode.Preview;
 	protected _contextValue?: string;
+	protected identityResolver?: Map<string, string>;
 
 	public author: vscode.CommentAuthorInformation;
 	public timestamp?: Date;
@@ -32,11 +33,13 @@ export abstract class CommentBase implements vscode.Comment {
 		protected readonly authorInfo: AuthorInfo,
 		protected readonly parent: vscode.CommentThread,
 		protected readonly organizationUrl?: string,
+		identityResolver?: Map<string, string>,
 	) {
 		this.author = {
 			name: authorInfo.displayName,
 			iconPath: authorInfo.imageUrl ? vscode.Uri.parse(authorInfo.imageUrl) : undefined,
 		};
+		this.identityResolver = identityResolver;
 		this._body = this.formatBody(rawContent);
 	}
 
@@ -81,7 +84,7 @@ export abstract class CommentBase implements vscode.Comment {
 	 * Format comment body as MarkdownString
 	 */
 	protected formatBody(content: string): vscode.MarkdownString {
-		const cleaned = cleanCommentContent(content);
+		const cleaned = cleanCommentContent(content, this.identityResolver);
 		return processCommentContent(cleaned, this.organizationUrl);
 	}
 
@@ -105,12 +108,12 @@ export abstract class CommentBase implements vscode.Comment {
 	}
 
 	/**
-	 * Set author icon from data URI
+	 * Set author icon from file path
 	 */
-	public setAuthorIcon(dataUri: string): void {
+	public setAuthorIcon(filePath: string): void {
 		this.author = {
 			...this.author,
-			iconPath: vscode.Uri.parse(dataUri),
+			iconPath: vscode.Uri.file(filePath),
 		};
 	}
 }
@@ -130,8 +133,9 @@ export class TemporaryComment extends CommentBase {
 		author: AuthorInfo,
 		parent: vscode.CommentThread,
 		organizationUrl?: string,
+		identityResolver?: Map<string, string>,
 	) {
-		super(content, author, parent, organizationUrl);
+		super(content, author, parent, organizationUrl, identityResolver);
 
 		this.tempId = `temp-${TemporaryComment.nextId++}`;
 		this.originalBody = content;
@@ -165,6 +169,7 @@ export class TemporaryComment extends CommentBase {
 			this.parent,
 			this.organizationUrl,
 			currentUserId,
+			this.identityResolver,
 		);
 
 		// Preserve any icon that was set
@@ -211,6 +216,7 @@ export class AzDOComment extends CommentBase {
 		parent: vscode.CommentThread,
 		organizationUrl?: string,
 		private currentUserId?: string,
+		identityResolver?: Map<string, string>,
 	) {
 		super(
 			serverComment.content,
@@ -222,6 +228,7 @@ export class AzDOComment extends CommentBase {
 			},
 			parent,
 			organizationUrl,
+			identityResolver,
 		);
 
 		this.commentId = serverComment.id;

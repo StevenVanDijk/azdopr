@@ -13,6 +13,7 @@ export interface PullRequest {
 	createdBy: {
 		displayName: string;
 		uniqueName: string;
+		imageUrl?: string;
 	};
 	creationDate: Date;
 	status: string;
@@ -151,6 +152,7 @@ interface AzDOPullRequest {
 	createdBy: {
 		displayName: string;
 		uniqueName: string;
+		imageUrl?: string;
 	};
 	creationDate: string;
 	status: string;

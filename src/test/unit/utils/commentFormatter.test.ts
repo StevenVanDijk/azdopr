@@ -273,6 +273,71 @@ suite("commentFormatter", () => {
 		});
 	});
 
+	suite("cleanCommentContent with identity resolver", () => {
+		test("should resolve GUID mention when resolver has the user", () => {
+			const resolver = new Map<string, string>();
+			resolver.set("5b8b71b7-3eb7-6574-b377-a695965dbda8", "John Doe");
+
+			const content = "Hey @<5B8B71B7-3EB7-6574-B377-A695965DBDA8>, can you review this?";
+			const result = cleanCommentContent(content, resolver);
+			assert.strictEqual(result, "Hey @John Doe, can you review this?");
+		});
+
+		test("should resolve multiple different GUID mentions", () => {
+			const resolver = new Map<string, string>();
+			resolver.set("5b8b71b7-3eb7-6574-b377-a695965dbda8", "Alice");
+			resolver.set("abcd1234-5678-90ef-1234-567890abcdef", "Bob");
+
+			const content = "@<5B8B71B7-3EB7-6574-B377-A695965DBDA8> and @<ABCD1234-5678-90EF-1234-567890ABCDEF> please review";
+			const result = cleanCommentContent(content, resolver);
+			assert.strictEqual(result, "@Alice and @Bob please review");
+		});
+
+		test("should resolve duplicate GUID mentions to same name", () => {
+			const resolver = new Map<string, string>();
+			resolver.set("5b8b71b7-3eb7-6574-b377-a695965dbda8", "Alice");
+
+			const content = "@<5B8B71B7-3EB7-6574-B377-A695965DBDA8> and @<5B8B71B7-3EB7-6574-B377-A695965DBDA8> again";
+			const result = cleanCommentContent(content, resolver);
+			assert.strictEqual(result, "@Alice and @Alice again");
+		});
+
+		test("should fall back to @user for unresolved GUID", () => {
+			const resolver = new Map<string, string>();
+			resolver.set("5b8b71b7-3eb7-6574-b377-a695965dbda8", "Alice");
+
+			const content = "@<5B8B71B7-3EB7-6574-B377-A695965DBDA8> and @<UNKNOWN-GUID-1234-5678-ABCDEFABCDEF>";
+			const result = cleanCommentContent(content, resolver);
+			assert.strictEqual(result, "@Alice and @user");
+		});
+
+		test("should handle case-insensitive GUID matching", () => {
+			const resolver = new Map<string, string>();
+			resolver.set("5b8b71b7-3eb7-6574-b377-a695965dbda8", "John Doe"); // lowercase key
+
+			const content = "@<5B8B71B7-3EB7-6574-B377-A695965DBDA8>"; // uppercase in content
+			const result = cleanCommentContent(content, resolver);
+			assert.strictEqual(result, "@John Doe");
+		});
+
+		test("should handle empty resolver (fall back to @user)", () => {
+			const resolver = new Map<string, string>();
+
+			const content = "@<5B8B71B7-3EB7-6574-B377-A695965DBDA8>";
+			const result = cleanCommentContent(content, resolver);
+			assert.strictEqual(result, "@user");
+		});
+
+		test("should preserve display names with spaces", () => {
+			const resolver = new Map<string, string>();
+			resolver.set("5b8b71b7-3eb7-6574-b377-a695965dbda8", "John C. Waters");
+
+			const content = "Thanks @<5B8B71B7-3EB7-6574-B377-A695965DBDA8> for the review!";
+			const result = cleanCommentContent(content, resolver);
+			assert.strictEqual(result, "Thanks @John C. Waters for the review!");
+		});
+	});
+
 	suite("formatCommentHeaderMarkdown", () => {
 		let clock: sinon.SinonFakeTimers;
 

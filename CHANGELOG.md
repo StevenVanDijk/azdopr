@@ -2,6 +2,25 @@
 
 All notable changes to the Azure DevOps PR Viewer extension.
 
+## [Unreleased]
+
+### Added
+
+- **User profile photos** - Profile photos now display throughout the extension UI
+  - PR author avatar in header
+  - Reviewer avatars in the reviews section
+  - Comment author avatars for main comments (larger) and replies (smaller)
+  - Graceful fallback to initials when image unavailable
+  - Pre-fetched in parallel for optimal performance with 1-hour caching
+
+### Fixed
+
+- **User mention display** - @mentions in PR comments now display actual usernames instead of generic "@user"
+  - Resolves GUID-based mentions (e.g., `@<5B8B71B7-...>`) to user display names
+  - Uses existing comment author data for resolution (zero additional API calls)
+  - Applies to both webview comments and inline diff comments
+  - Falls back gracefully to "@user" for unresolved mentions
+
 ## [1.8.0] - 2025-02-02:
 
 ### Added

@@ -337,18 +337,70 @@ export class PullRequestViewerPanel {
 				? await marked(this.pullRequest.description)
 				: "No description provided.";
 
+			// Pre-fetch all user avatars
+			const avatarMap = await this._prefetchAvatars(this.pullRequest, threads);
+
 			webview.html = this._getHtmlForWebview(
 				webview,
 				fileChanges,
 				threads,
 				descriptionHtml,
 				cacheInfo,
+				avatarMap,
 			);
 		} catch (error) {
 			const friendlyMessage = this._getFriendlyErrorMessage(error);
 			logger.error("Error loading pull request:", error);
 			webview.html = this._getErrorHtml(friendlyMessage);
 		}
+	}
+
+	/**
+	 * Pre-fetch all user avatar images for the webview
+	 * Returns a map of imageUrl -> dataUri
+	 */
+	private async _prefetchAvatars(
+		pr: PullRequest,
+		threads: PRThread[],
+	): Promise<Map<string, string>> {
+		const avatarMap = new Map<string, string>();
+		const imageUrls = new Set<string>();
+
+		// Collect PR author avatar
+		if (pr.createdBy?.imageUrl) {
+			imageUrls.add(pr.createdBy.imageUrl);
+		}
+
+		// Collect reviewer avatars
+		for (const reviewer of pr.reviewers || []) {
+			if (reviewer.imageUrl) {
+				imageUrls.add(reviewer.imageUrl);
+			}
+		}
+
+		// Collect comment author avatars
+		for (const thread of threads) {
+			for (const comment of thread.comments || []) {
+				if (comment.author?.imageUrl) {
+					imageUrls.add(comment.author.imageUrl);
+				}
+			}
+		}
+
+		// Fetch all images in parallel
+		const fetchPromises = Array.from(imageUrls).map(async (url) => {
+			try {
+				const dataUri = await this.azureDevOpsClient.getImageAsDataUri(url);
+				if (dataUri) {
+					avatarMap.set(url, dataUri);
+				}
+			} catch (error) {
+				// Silently ignore failed image fetches - will fall back to initials
+			}
+		});
+
+		await Promise.all(fetchPromises);
+		return avatarMap;
 	}
 
 	private _getLoadingHtml(): string {
@@ -421,6 +473,7 @@ export class PullRequestViewerPanel {
 		threads: PRThread[],
 		descriptionHtml: string,
 		cacheInfo: { isCached: boolean; ageInSeconds?: number },
+		avatarMap: Map<string, string> = new Map(),
 	): string {
 		const pr = this.pullRequest;
 		const nonce = getNonce();
@@ -440,16 +493,16 @@ export class PullRequestViewerPanel {
 			"<head>",
 			'<meta charset="UTF-8">',
 			'<meta name="viewport" content="width=device-width, initial-scale=1.0">',
-			`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">`,
+			`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src data:;">`,
 			`<title>PR #${pr.pullRequestId}</title>`,
 			this._getStyles(),
 			"</head>",
 			"<body>",
 			'<div class="container">',
-			this._getHeaderHtml(pr, sourceBranch, targetBranch, createdDate, createdTime, cacheInfo),
+			this._getHeaderHtml(pr, sourceBranch, targetBranch, createdDate, createdTime, cacheInfo, avatarMap),
 			this._getTabNavigationHtml(fileChanges, threads),
 			'<div class="tab-content">',
-			this._getConversationTabHtml(pr, descriptionHtml, threads),
+			this._getConversationTabHtml(pr, descriptionHtml, threads, avatarMap),
 			this._getFilesTabHtml(fileChanges, threads),
 			"</div>",
 			"</div>",
@@ -1679,6 +1732,42 @@ export class PullRequestViewerPanel {
             .vote-waiting-author {
                 color: #ffa500;
             }
+            /* Avatar styles */
+            .avatar {
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                object-fit: cover;
+                flex-shrink: 0;
+            }
+            .avatar-sm {
+                width: 24px;
+                height: 24px;
+            }
+            .avatar-md {
+                width: 28px;
+                height: 28px;
+            }
+            .avatar-lg {
+                width: 32px;
+                height: 32px;
+            }
+            .avatar-fallback {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background-color: var(--vscode-badge-background);
+                color: var(--vscode-badge-foreground);
+                font-weight: 600;
+                font-size: 10px;
+                text-transform: uppercase;
+            }
+            .avatar-fallback.avatar-md {
+                font-size: 11px;
+            }
+            .avatar-fallback.avatar-lg {
+                font-size: 12px;
+            }
             .tab-navigation {
                 display: flex;
                 border-bottom: 1px solid var(--vscode-panel-border);
@@ -2114,16 +2203,17 @@ export class PullRequestViewerPanel {
 		pr: PullRequest,
 		descriptionHtml: string,
 		threads: PRThread[],
+		avatarMap: Map<string, string> = new Map(),
 	): string {
 		return `
         <div class="tab-panel active" data-panel="conversation">
             <div class="conversation-layout">
                 <div class="conversation-sidebar">
-                    ${this._getCombinedReviewsHtml(pr)}
+                    ${this._getCombinedReviewsHtml(pr, avatarMap)}
                 </div>
                 <div class="conversation-main">
                     ${this._getDescriptionHtml(descriptionHtml)}
-                    ${this._getGeneralCommentsHtml(threads)}
+                    ${this._getGeneralCommentsHtml(threads, avatarMap)}
                 </div>
             </div>
         </div>`;
@@ -2146,6 +2236,7 @@ export class PullRequestViewerPanel {
 		createdDate: string,
 		createdTime: string,
 		cacheInfo: { isCached: boolean; ageInSeconds?: number },
+		avatarMap: Map<string, string> = new Map(),
 	): string {
 		const statusClass = pr.isDraft ? "status-draft" : "status-active";
 		const statusText = pr.isDraft ? "draft" : pr.status;
@@ -2188,7 +2279,9 @@ export class PullRequestViewerPanel {
                 </div>
             </div>
             <div class="pr-meta">
-                #${pr.pullRequestId} opened on ${createdDate} at ${createdTime} by ${this._escapeHtml(pr.createdBy?.displayName || "[User name unavailable]")}
+                #${pr.pullRequestId} opened on ${createdDate} at ${createdTime} by
+                ${this._getAvatarHtml(avatarMap.get(pr.createdBy?.imageUrl || ""), pr.createdBy?.displayName || "Unknown", "sm")}
+                ${this._escapeHtml(pr.createdBy?.displayName || "[User name unavailable]")}
             </div>
             <div class="pr-meta-secondary">
                 <span class="meta-item">
@@ -2207,7 +2300,7 @@ export class PullRequestViewerPanel {
         </div>`;
 	}
 
-	private _getCombinedReviewsHtml(pr: PullRequest): string {
+	private _getCombinedReviewsHtml(pr: PullRequest, avatarMap: Map<string, string> = new Map()): string {
 		// Calculate vote counts
 		const approvedCount = pr.reviewers?.filter((r) => r.vote === 10).length || 0;
 		const approvedWithSuggestionsCount = pr.reviewers?.filter((r) => r.vote === 5).length || 0;
@@ -2261,6 +2354,7 @@ export class PullRequestViewerPanel {
 					return `
 					<div class="reviewer-item">
 						<div class="reviewer-info">
+							${this._getAvatarHtml(avatarMap.get(reviewer.imageUrl || ""), reviewer.displayName || reviewer.uniqueName || "Unknown", "sm")}
 							<span class="reviewer-name">${this._escapeHtml(reviewer.displayName || reviewer.uniqueName || "[Reviewer name unavailable]")}</span>
 							${requiredBadge}
 						</div>
@@ -2451,7 +2545,17 @@ export class PullRequestViewerPanel {
 	 * 1. Threads without a file path (general PR comments)
 	 * 2. Threads with a file path but no line numbers (file-level comments)
 	 */
-	private _getGeneralCommentsHtml(threads: PRThread[]): string {
+	private _getGeneralCommentsHtml(threads: PRThread[], avatarMap: Map<string, string> = new Map()): string {
+		// Build identity resolver from all comment authors in all threads
+		const identityResolver = new Map<string, string>();
+		for (const thread of threads) {
+			for (const comment of thread.comments || []) {
+				if (comment.author?.id && comment.author?.displayName) {
+					identityResolver.set(comment.author.id.toLowerCase(), comment.author.displayName);
+				}
+			}
+		}
+
 		// Filter for general comments (no file path) and file-level comments (has file path but no line number)
 		const generalThreads = threads.filter((thread) => {
 			// Exclude vote notifications
@@ -2494,7 +2598,7 @@ export class PullRequestViewerPanel {
 				const firstComment = thread.comments[0];
 				const authorName = firstComment.author?.displayName || "[Author name unavailable]";
 				const rawContent = firstComment.content || "[No content]";
-				const content = cleanCommentContent(rawContent);
+				const content = cleanCommentContent(rawContent, identityResolver);
 				const replyCount = thread.comments.length - 1;
 
 				// Check if current user can edit this comment
@@ -2574,7 +2678,7 @@ export class PullRequestViewerPanel {
 						.map((comment) => {
 							const replyAuthor = comment.author?.displayName || "[Author name unavailable]";
 							const rawReplyContent = comment.content || "[No content]";
-							const replyContent = cleanCommentContent(rawReplyContent);
+							const replyContent = cleanCommentContent(rawReplyContent, identityResolver);
 							const replyTime = formatTimeAgo(comment.publishedDate);
 							const canEditReply = this.currentUserId && comment.author?.id === this.currentUserId;
 
@@ -2590,6 +2694,7 @@ export class PullRequestViewerPanel {
 							return `
                         <div class="comment-reply" data-comment-id="${comment.id}">
                             <div class="comment-reply-header">
+                                ${this._getAvatarHtml(avatarMap.get(comment.author?.imageUrl || ""), replyAuthor, "sm")}
                                 <span class="comment-author">${this._escapeHtml(replyAuthor)}</span>
                                 <span class="comment-time">${replyTime}</span>
                             </div>
@@ -2620,6 +2725,7 @@ export class PullRequestViewerPanel {
                 <div class="general-comment-thread" data-thread-id="${thread.id}">
                     <div class="comment-header">
                         <div class="comment-header-left">
+                            ${this._getAvatarHtml(avatarMap.get(firstComment.author?.imageUrl || ""), authorName, "md")}
                             <span class="comment-author">${this._escapeHtml(authorName)}</span>
                             <span class="comment-time">${timeAgo}</span>
                         </div>
@@ -2993,6 +3099,40 @@ export class PullRequestViewerPanel {
 			"'": "&#039;",
 		};
 		return text.replaceAll(/[&<>"']/g, (m) => map[m]);
+	}
+
+	/**
+	 * Get initials from a display name for avatar fallback
+	 */
+	private _getInitials(displayName: string): string {
+		if (!displayName) return "?";
+		const parts = displayName.trim().split(/\s+/);
+		if (parts.length === 1) {
+			return parts[0].substring(0, 2).toUpperCase();
+		}
+		return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+	}
+
+	/**
+	 * Generate avatar HTML with image or fallback initials
+	 * @param imageDataUri Base64 data URI for the image (or undefined)
+	 * @param displayName User's display name for alt text and fallback
+	 * @param size Size class: 'sm' (24px), 'md' (28px), or 'lg' (32px)
+	 */
+	private _getAvatarHtml(
+		imageDataUri: string | undefined,
+		displayName: string,
+		size: "sm" | "md" | "lg" = "sm"
+	): string {
+		const escapedName = this._escapeHtml(displayName);
+		const sizeClass = `avatar-${size}`;
+
+		if (imageDataUri) {
+			return `<img class="avatar ${sizeClass}" src="${imageDataUri}" alt="${escapedName}" title="${escapedName}" />`;
+		}
+
+		const initials = this._getInitials(displayName);
+		return `<span class="avatar avatar-fallback ${sizeClass}" title="${escapedName}">${initials}</span>`;
 	}
 
 	/**

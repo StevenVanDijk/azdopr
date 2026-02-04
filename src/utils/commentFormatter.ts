@@ -83,11 +83,24 @@ export function getThreadStatusIcon(statusLabel: string): string {
 }
 
 /**
- * Clean comment content by removing GUID mentions
+ * Clean comment content by resolving GUID mentions to display names
+ * @param content The comment content to clean
+ * @param identityResolver Optional map of GUIDs to display names
  */
-export function cleanCommentContent(content: string): string {
-	// Remove GUID mentions like @<5B8B71B7-3EB7-6574-B377-A695965DBDA8>
-	const cleaned = content.replace(/@<[A-F0-9-]+>/gi, "@user");
+export function cleanCommentContent(
+	content: string,
+	identityResolver?: Map<string, string>,
+): string {
+	// Replace GUID mentions like @<5B8B71B7-3EB7-6574-B377-A695965DBDA8>
+	const cleaned = content.replace(/@<([A-F0-9-]+)>/gi, (match, guid) => {
+		if (identityResolver) {
+			const displayName = identityResolver.get(guid.toLowerCase());
+			if (displayName) {
+				return `@${displayName}`;
+			}
+		}
+		return "@user";
+	});
 	return cleaned.trim();
 }
 

@@ -3,7 +3,7 @@ import { THREAD_STATUS } from "../constants/azureDevOpsConstants";
 import { COMMENT_DEBOUNCE_MS } from "../constants/cacheConfig";
 import type { AzureDevOpsClient, PRThread } from "../services/azureDevOpsClient";
 import { PRContextManager } from "../services/prContextManager";
-import { type AuthorInfo, type AzDOComment, TemporaryComment } from "../types/comments";
+import { type AuthorInfo, AzDOComment, TemporaryComment } from "../types/comments";
 import { type AzDOCommentThread, CommentThreadManager } from "../types/commentThread";
 import { formatErrorWithPrefix } from "../utils/errorFormatter";
 import { Logger } from "../utils/logger";
@@ -288,9 +288,6 @@ export class PRCommentController {
 				this.currentUserId,
 			);
 
-			// Fetch profile images for all comments asynchronously
-			await this.loadProfileImages(fileThreads);
-
 			logger.info(`PRCommentController: Successfully synced ${fileThreads.length} threads`);
 		} catch (error) {
 			logger.error("PRCommentController: Failed to load comments", error);
@@ -332,39 +329,6 @@ export class PRCommentController {
 	 */
 	private normalizePath(path: string): string {
 		return path.replace(/^\/+/, "").replaceAll("\\", "/").toLowerCase();
-	}
-
-	/**
-	 * Load profile images for all comments in threads
-	 */
-	private async loadProfileImages(threads: PRThread[]): Promise<void> {
-		const imagePromises: Promise<void>[] = [];
-
-		for (const thread of threads) {
-			for (const comment of thread.comments) {
-				if (comment.author.imageUrl) {
-					imagePromises.push(this.loadProfileImage(comment.author.imageUrl, comment.id));
-				}
-			}
-		}
-
-		await Promise.all(imagePromises);
-	}
-
-	/**
-	 * Load a single profile image as data URI
-	 */
-	private async loadProfileImage(imageUrl: string, commentId: number): Promise<void> {
-		try {
-			const dataUri = await this.azureDevOpsClient.getImageAsDataUri(imageUrl);
-			if (dataUri) {
-				// Find the comment and update its icon
-				// This will be handled by the comment objects themselves
-				logger.debug(`PRCommentController: Loaded image for comment ${commentId}`);
-			}
-		} catch (error) {
-			logger.warn(`PRCommentController: Failed to load image for comment ${commentId}:`, error);
-		}
 	}
 
 	/**
