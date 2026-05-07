@@ -135,8 +135,10 @@ export class PullRequestProvider implements vscode.TreeDataProvider<PRTreeItem> 
 				// Fire the tree data change to update the view with fresh data
 				this.refresh();
 			})
-			.catch(() => {
+			.catch((error) => {
 				this.isRefreshing = false;
+				const errorMessage = formatErrorMessage(error);
+				console.error(`Background PR refresh failed: ${errorMessage}`);
 			});
 	}
 

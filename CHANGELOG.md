@@ -4,6 +4,15 @@ All notable changes to the Azure DevOps PR Viewer extension.
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-05-07
+
+### Fixed
+
+- **PRs failing to load in production** - A single inaccessible project or repository would cause the entire PR list to fail with a generic error
+  - Changed parallel fetch strategy from `Promise.all` to `Promise.allSettled` so individual failures no longer break the whole view
+  - Individual project/repository fetch failures are now logged with context (which project, which repo)
+  - Background refresh errors are now logged instead of silently swallowed
+
 ### Added
 
 - **User profile photos** - Profile photos now display throughout the extension UI

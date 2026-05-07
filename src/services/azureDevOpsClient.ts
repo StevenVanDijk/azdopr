@@ -454,21 +454,48 @@ export class AzureDevOpsClient {
 					);
 				}
 
-				// Fetch all repos for all projects in parallel
-				const projectRepoPromises = projects.map(async (project) => {
-					const repos = await this.getRepositories(project.id);
-					return { project, repos };
-				});
-
-				const projectRepos = await Promise.all(projectRepoPromises);
-
-				// Fetch all PRs for all repos in parallel
-				const allPRPromises = projectRepos.flatMap(({ project, repos }) =>
-					repos.map((repo) => this.getPullRequests(project.id, repo.id)),
+				// Fetch all repos for all projects in parallel (resilient to individual failures)
+				const projectRepoResults = await Promise.allSettled(
+					projects.map(async (project) => {
+						const repos = await this.getRepositories(project.id);
+						return { project, repos };
+					}),
 				);
 
-				const prResults = await Promise.all(allPRPromises);
-				return prResults.flat();
+				const projectRepos: Array<{ project: Project; repos: Repository[] }> = [];
+				for (const result of projectRepoResults) {
+					if (result.status === "fulfilled") {
+						projectRepos.push(result.value);
+					} else {
+						logger.warn(`Failed to fetch repositories for a project: ${result.reason}`);
+					}
+				}
+
+				// Fetch all PRs for all repos in parallel (resilient to individual failures)
+				const allPRResults = await Promise.allSettled(
+					projectRepos.flatMap(({ project, repos }) =>
+						repos.map(async (repo) => {
+							try {
+								return await this.getPullRequests(project.id, repo.id);
+							} catch (error) {
+								logger.warn(
+									`Failed to fetch PRs for ${project.name}/${repo.name}: ${error instanceof Error ? error.message : String(error)}`,
+								);
+								return [];
+							}
+						}),
+					),
+				);
+
+				const allPRs: PullRequest[] = [];
+				for (const result of allPRResults) {
+					if (result.status === "fulfilled") {
+						allPRs.push(...result.value);
+					}
+					// Rejections already logged in the inner catch
+				}
+
+				return allPRs;
 			},
 			30000, // 30 second cache
 		);
