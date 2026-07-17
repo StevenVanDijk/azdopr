@@ -9,6 +9,7 @@ import { GitService } from "./services/gitService";
 import { LfsCache } from "./services/lfs/lfsCache";
 import { RepositoryMatchingService } from "./services/repositoryMatchingService";
 import { ReviewedFilesService } from "./services/reviewedFilesService";
+import { openTrustedExternalUrl } from "./utils/externalUrlValidator";
 import { Logger } from "./utils/logger";
 import { PullRequestViewerPanel } from "./views/pullRequestViewerPanel";
 
@@ -110,7 +111,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			"azureDevOpsPRs.openPR",
 			async (arg: string | { pullRequest: PullRequest } | PullRequest | undefined) => {
 				if (typeof arg === "string") {
-					await vscode.env.openExternal(vscode.Uri.parse(arg));
+					await openTrustedExternalUrl(arg, "azureDevOpsPRs.openPR");
 					return;
 				}
 
@@ -124,7 +125,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					.getConfiguration("azureDevOpsPRViewer")
 					.get<string>("organization", "");
 				const url = buildPRUrl(pr, org);
-				await vscode.env.openExternal(vscode.Uri.parse(url));
+				await openTrustedExternalUrl(url, "azureDevOpsPRs.openPR");
 			},
 		),
 		vscode.commands.registerCommand(

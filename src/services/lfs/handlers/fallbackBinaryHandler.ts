@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
+import { openTrustedExternalUrl } from "../../../utils/externalUrlValidator";
 import { Logger } from "../../../utils/logger";
 import type { LfsFileHandler, PRContext } from "../fileTypeHandlers";
 
@@ -64,7 +65,7 @@ export class FallbackBinaryHandler implements LfsFileHandler {
 				);
 
 				if (openAction === "Open File") {
-					await vscode.env.openExternal(saveUri);
+					await vscode.commands.executeCommand("vscode.open", saveUri);
 				} else if (openAction === "Reveal in Explorer") {
 					await vscode.commands.executeCommand("revealFileInOS", saveUri);
 				}
@@ -90,7 +91,7 @@ export class FallbackBinaryHandler implements LfsFileHandler {
 
 			const url = `https://dev.azure.com/${org}/${prContext.projectId}/_git/${prContext.repositoryId}/pullrequest/${prContext.pullRequestId}?_a=files&path=${encodeURIComponent(prContext.filePath)}`;
 
-			await vscode.env.openExternal(vscode.Uri.parse(url));
+			await openTrustedExternalUrl(url, "FallbackBinaryHandler.openInBrowser");
 		} catch (error) {
 			logger.error("[FallbackBinaryHandler] Failed to open in browser:", error);
 			vscode.window.showErrorMessage(

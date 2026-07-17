@@ -17,6 +17,7 @@ import {
 	formatTimeAgo,
 	getThreadStatusLabel,
 } from "../utils/commentFormatter";
+import { openTrustedExternalUrl } from "../utils/externalUrlValidator";
 import { autoLinkUrls, escapeHtml, sanitizeHtml } from "../utils/htmlSanitizer";
 import { Logger } from "../utils/logger";
 
@@ -79,7 +80,7 @@ export class PullRequestViewerPanel {
 						await this._openFileDiff(message.path, message.changeType, message.originalPath);
 						break;
 					case "openExternal":
-						vscode.env.openExternal(vscode.Uri.parse(message.url));
+						await openTrustedExternalUrl(message.url, "PullRequestViewerPanel.webview");
 						break;
 					case "submitReview":
 						await this._handleReviewSubmission(message.vote);
@@ -956,7 +957,7 @@ export class PullRequestViewerPanel {
 							const projectName = this.pullRequest.repository?.project?.name || "unknown";
 							const repoName = this.pullRequest.repository?.name || "unknown";
 							const webUrl = `https://dev.azure.com/${org}/${projectName}/_git/${repoName}/pullrequest/${this.pullRequest.pullRequestId}?_a=files&path=${encodeURIComponent(path)}`;
-							vscode.env.openExternal(vscode.Uri.parse(webUrl));
+							await openTrustedExternalUrl(webUrl, "PullRequestViewerPanel.diffFallback");
 						}
 					}
 				},
