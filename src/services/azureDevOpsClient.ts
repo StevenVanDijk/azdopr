@@ -275,6 +275,10 @@ interface CacheEntry<T> {
  * - Use PRCacheService: For complete PR data structures that are expensive to rebuild
  */
 export class AzureDevOpsClient {
+	private static readonly REQUEST_TIMEOUT_MS = 30000;
+	private static readonly MAX_RESPONSE_BYTES = 25 * 1024 * 1024;
+	private static readonly MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+	private static readonly MAX_BINARY_DOWNLOAD_BYTES = 25 * 1024 * 1024;
 	private readonly axiosInstance: AxiosInstance;
 	private organization: string = "";
 
@@ -290,6 +294,9 @@ export class AzureDevOpsClient {
 			headers: {
 				"Content-Type": "application/json",
 			},
+			timeout: AzureDevOpsClient.REQUEST_TIMEOUT_MS,
+			maxContentLength: AzureDevOpsClient.MAX_RESPONSE_BYTES,
+			maxBodyLength: AzureDevOpsClient.MAX_RESPONSE_BYTES,
 		});
 
 		this.updateOrganization();
@@ -860,7 +867,13 @@ export class AzureDevOpsClient {
 			// Handle binary response
 			if (downloadType === "binary") {
 				// For binary downloads, Azure DevOps returns the raw binary data
-				return Buffer.from(response.data);
+				const buffer = Buffer.from(response.data);
+				if (buffer.byteLength > AzureDevOpsClient.MAX_BINARY_DOWNLOAD_BYTES) {
+					throw new Error(
+						`Downloaded file exceeds ${Math.floor(AzureDevOpsClient.MAX_BINARY_DOWNLOAD_BYTES / (1024 * 1024))} MB safety limit`,
+					);
+				}
+				return buffer;
 			}
 
 			// Handle text response (same logic as getFileContent)
@@ -970,6 +983,12 @@ export class AzureDevOpsClient {
 
 			// Convert to base64
 			const buffer = Buffer.from(response.data);
+			if (buffer.byteLength > AzureDevOpsClient.MAX_IMAGE_BYTES) {
+				logger.warn(
+					`AzureDevOpsClient: Skipping oversized image (${buffer.byteLength} bytes) from ${imageUrl}`,
+				);
+				return undefined;
+			}
 			const base64 = buffer.toString("base64");
 			const contentType = response.headers["content-type"] || "image/png";
 			const dataUri = `data:${contentType};base64,${base64}`;
