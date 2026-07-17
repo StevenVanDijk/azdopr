@@ -53,16 +53,15 @@ git push origin vX.Y.Z
 
 ```bash
 # Login (first time only, or if token expired)
+# This stores your token in the OS credential manager.
 vsce login johncwaters
 
 # Publish
 npm run publish
 ```
 
-Or publish with the PAT inline:
-```bash
-vsce publish -p YOUR_PAT_TOKEN
-```
+Avoid passing PATs inline on the command line (for example via `-p`), because
+they can leak through shell history or process inspection.
 
 ### 6. Verify
 
