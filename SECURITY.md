@@ -45,4 +45,10 @@ When using Azure DevOps PR Viewer:
 - Review the extension's permissions in VS Code
 - Report any suspicious behavior immediately
 
+### Repository Submodules
+
+- The repository may include a `.copilot` Git submodule for development-time guidance.
+- This submodule is not required for the extension's runtime behavior and is excluded from packaged releases.
+- Audit the submodule repository separately before using it in any trusted development or CI environment.
+
 Thank you for helping keep Azure DevOps PR Viewer and its users safe!

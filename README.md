@@ -45,3 +45,9 @@ View and review all your organization's Azure DevOps pull requests directly in V
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and workflow. This extension is still in development and open to help!
+
+## Repository Notes
+
+- The `.copilot` path is a developer-facing Git submodule used for local authoring support.
+- It is excluded from the published VSIX and is not required at runtime by the extension.
+- Treat the submodule as separate supply-chain scope and review it independently before enabling recursive checkout in any downstream automation.

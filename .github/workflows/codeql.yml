@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
+        with:
+          submodules: false
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@b943c0f8f2648e742f562fc3ebefdfd8de2f9d96 # v3.27.5
