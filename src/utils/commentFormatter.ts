@@ -144,7 +144,7 @@ export function formatCommentAsMarkdown(
 
 	const markdown = new vscode.MarkdownString(parts.join("\n"));
 	markdown.supportThemeIcons = true;
-	markdown.isTrusted = true;
+	markdown.isTrusted = false;
 	markdown.supportHtml = false;
 
 	return markdown;
@@ -173,7 +173,7 @@ export function formatRepliesAsMarkdown(comments: PRComment[]): vscode.MarkdownS
 
 	const markdown = new vscode.MarkdownString(parts.join("\n"));
 	markdown.supportThemeIcons = true;
-	markdown.isTrusted = true;
+	markdown.isTrusted = false;
 	markdown.supportHtml = false;
 
 	return markdown;

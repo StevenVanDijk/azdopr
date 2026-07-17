@@ -24,7 +24,7 @@ export function processCommentContent(
 	// Create markdown string with enhancements
 	const markdown = new vscode.MarkdownString(processed);
 	markdown.supportThemeIcons = true; // Enable theme icons
-	markdown.isTrusted = true; // Enable command links and HTML (if needed)
+	markdown.isTrusted = false; // Untrusted: comment content can come from external sources
 	markdown.supportHtml = false; // Security: disable raw HTML by default
 
 	return markdown;

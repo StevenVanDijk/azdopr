@@ -137,7 +137,7 @@ export class TemporaryComment extends CommentBase {
 
 	override get body(): string | vscode.MarkdownString {
 		const markdown = new vscode.MarkdownString();
-		markdown.isTrusted = true;
+		markdown.isTrusted = false;
 		markdown.supportThemeIcons = true;
 
 		markdown.appendMarkdown("_Pending..._\n\n");

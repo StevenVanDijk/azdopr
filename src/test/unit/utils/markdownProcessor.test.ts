@@ -142,7 +142,7 @@ suite("markdownProcessor", () => {
 			const result = processCommentContent(content);
 
 			assert.strictEqual(result.supportThemeIcons, true);
-			assert.strictEqual(result.isTrusted, true);
+			assert.strictEqual(result.isTrusted, false);
 			assert.strictEqual(result.supportHtml, false);
 		});
 
